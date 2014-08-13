@@ -17,6 +17,7 @@ package com.github.tomakehurst.wiremock;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.common.SingleRootFileSource;
+import com.github.tomakehurst.wiremock.http.GzipDecompressor;
 import com.github.tomakehurst.wiremock.standalone.WireMockServerRunner;
 import com.github.tomakehurst.wiremock.testsupport.MappingJsonSamples;
 import com.github.tomakehurst.wiremock.testsupport.WireMockResponse;
@@ -35,9 +36,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.*;
-import java.nio.charset.Charset;
 import java.util.Arrays;
-import java.util.zip.GZIPInputStream;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.google.common.base.Charsets.UTF_8;
@@ -65,7 +64,8 @@ public class StandaloneAcceptanceTest {
 	private ByteArrayOutputStream out;
 	
 	private File mappingsDirectory;
-	
+	private File filesDirectory;
+
 	@Before
 	public void init() throws Exception {
 		if (FILE_SOURCE_ROOT.exists()) {
@@ -75,7 +75,8 @@ public class StandaloneAcceptanceTest {
 		FILE_SOURCE_ROOT.mkdirs();
 		
 		mappingsDirectory = new File(FILE_SOURCE_ROOT, MAPPINGS);
-		
+        filesDirectory = new File(FILE_SOURCE_ROOT, FILES);
+
 		runner = new WireMockServerRunner();
 		testClient = new WireMockTestClient();
 		
@@ -201,7 +202,8 @@ public class StandaloneAcceptanceTest {
         startRunner();
         byte[] returnedContent = testClient.get("/body/file").binaryContent();
         assertThat(returnedContent, is(MappingJsonSamples.BINARY_COMPRESSED_CONTENT));
-        assertThat(decompress(returnedContent), is(MappingJsonSamples.BINARY_COMPRESSED_CONTENT_AS_STRING));
+        assertThat(new GzipDecompressor().decompressToUtf8String(returnedContent),
+                is(MappingJsonSamples.BINARY_COMPRESSED_CONTENT_AS_STRING));
     }
 
 	@Test
@@ -248,9 +250,32 @@ public class StandaloneAcceptanceTest {
 		testClient.get("/please/record-this");
 		
 		assertThat(mappingsDirectory, containsAFileContaining("/please/record-this"));
-		assertThat(contentsOfFirstFileNamedLike("please-record-this"),
+		assertThat(contentsOfFirstMappingFileNamedLike("please-record-this"),
 		        containsString("bodyFileName\" : \"body-please-record-this"));
 	}
+
+    @Test
+    public void ungzipsRecordedResponsesWhenSpecifiedOnCommandLine() throws Exception {
+        WireMock otherServerClient = start8084ServerAndCreateClient();
+        startRunner("--record-mappings", "--ungzip-recorded-responses");
+        givenThat(get(urlEqualTo("/please/decompress-this"))
+                .willReturn(aResponse().proxiedFrom("http://localhost:8084")));
+        otherServerClient.register(
+                get(urlEqualTo("/please/decompress-this"))
+                        .willReturn(aResponse().withStatus(HTTP_OK)
+                                .withHeader("Content-Encoding", "gzip")
+                                .withBody(MappingJsonSamples.BINARY_COMPRESSED_CONTENT)));
+
+        testClient.get("/please/decompress-this");
+
+        assertThat(mappingsDirectory, containsAFileContaining("/please/decompress-this"));
+        assertThat(contentsOfFirstMappingFileNamedLike("please-decompress-this"),
+                containsString("bodyFileName\" : \"body-please-decompress-this"));
+        assertThat(contentsOfFirstMappingFileNamedLike("please-decompress-this"),
+                not(containsString("Content-Encoding")));
+        assertThat(contentsOfFirstBodyFileNamedLike("please-decompress-this"),
+                containsString(MappingJsonSamples.BINARY_COMPRESSED_CONTENT_AS_STRING));
+    }
 	
 	@Test
 	public void performsBrowserProxyingWhenEnabled() {
@@ -288,6 +313,10 @@ public class StandaloneAcceptanceTest {
 
     private String contentsOfFirstFileNamedLike(String namePart) throws IOException {
         return Files.toString(firstFileWithNameLike(mappingsDirectory, namePart), UTF_8);
+    }
+
+    private String contentsOfFirstBodyFileNamedLike(String namePart) throws IOException {
+        return Files.toString(firstFileWithNameLike(filesDirectory, namePart), UTF_8);
     }
 	
 	private File firstFileWithNameLike(File directory, String namePart) {
