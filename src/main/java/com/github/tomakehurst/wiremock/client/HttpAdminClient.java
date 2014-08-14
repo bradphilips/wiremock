@@ -15,6 +15,8 @@
  */
 package com.github.tomakehurst.wiremock.client;
 
+import java.util.List;
+
 import com.github.tomakehurst.wiremock.admin.*;
 import com.github.tomakehurst.wiremock.common.Json;
 import com.github.tomakehurst.wiremock.core.Admin;
@@ -26,6 +28,7 @@ import com.github.tomakehurst.wiremock.stubbing.ListStubMappingsResult;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import com.github.tomakehurst.wiremock.verification.FindRequestsResult;
 import com.github.tomakehurst.wiremock.verification.VerificationResult;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -79,6 +82,11 @@ public class HttpAdminClient implements Admin {
     }
 
     @Override
+    public void saveMappings() {
+        postJsonAssertOkAndReturnBody(urlFor(SaveMappingsTask.class), null, HTTP_OK);
+    }
+
+    @Override
 	public void resetMappings() {
 		postJsonAssertOkAndReturnBody(urlFor(ResetTask.class), null, HTTP_OK);
 	}
@@ -127,7 +135,12 @@ public class HttpAdminClient implements Admin {
                 HTTP_OK);
     }
 
-	private String postJsonAssertOkAndReturnBody(String url, String json, int expectedStatus) {
+    @Override
+    public void shutdownServer() {
+        postJsonAssertOkAndReturnBody(urlFor(ShutdownServerTask.class), null, HTTP_OK);
+    }
+
+    private String postJsonAssertOkAndReturnBody(String url, String json, int expectedStatus) {
 		HttpPost post = new HttpPost(url);
 		try {
 			if (json != null) {

@@ -20,6 +20,26 @@ Some scenarios you might want to consider WireMock for:
 * Any unit testing of code that depends on a web service
 
 
+Who makes it?
+-------------
+WireMock was created and is maintained by `Tom Akehurst <http://www.tomakehurst.com/about>`_.
+
+The following people have been kind enough to submit improvements:
+
+* `Tim Perry <https://github.com/pimterry>`_
+* `Dominic Tootell <https://github.com/tootedom>`_
+* `mangotang <https://github.com/mangotang>`_
+* `Rob Elliot <https://github.com/mahoney>`_
+* `Neil Green <https://github.com/neilg>`_
+* `Rowan Hill <https://github.com/rowanhill>`_
+* `Christian Trimble <https://github.com/ctrimble>`_
+* `Aman King <https://github.com/amanking>`_
+* `Oliver Schönherr <https://github.com/oschoen>`_
+* `Jay Goldberg <https://github.com/carthoris>`_
+* `Matt Nathan <https://github.com/mattnathan>`_
+
+
+
 Why shouldn't I just use my favourite mocking library?
 ------------------------------------------------------
 
@@ -47,18 +67,6 @@ Luckily, `Rowan Hill <https://github.com/rowanhill>`_ has built a `PHP binding <
 so you can bring it to your next Shoreditch hackathon without fear of ridicule!
 
 
-Contributors
-------------
-
-Shouts to the following folks who've been kind enough to submit improvements:
-
-* `Tim Perry <https://github.com/pimterry>`_
-* `Dominic Tootell <https://github.com/tootedom>`_
-* `mangotang <https://github.com/mangotang>`_
-* `Rob Elliot <https://github.com/mahoney>`_
-* `Neil Green <https://github.com/neilg>`_
-
-
 Contents
 --------
 
@@ -72,6 +80,7 @@ Contents
    record-playback
    stateful-behaviour
    simulating-faults
+   shutting-down
 
 
 

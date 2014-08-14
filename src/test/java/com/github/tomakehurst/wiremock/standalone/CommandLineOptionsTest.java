@@ -17,6 +17,7 @@ package com.github.tomakehurst.wiremock.standalone;
 
 import com.github.tomakehurst.wiremock.common.ProxySettings;
 import com.github.tomakehurst.wiremock.stubbing.StubMappingJsonRecorder;
+import com.github.tomakehurst.wiremock.http.CaseInsensitiveKey;
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.*;
@@ -54,6 +55,13 @@ public class CommandLineOptionsTest {
         assertThat(options.decompressionMode(), is(StubMappingJsonRecorder.DecompressionMode.NO_DECOMPRESSION));
     }
 	
+    @Test
+    public void returnsHeaderMatchingEnabledWhenOptionPresent() {
+    	CommandLineOptions options =  new CommandLineOptions("--match-headers", "Accept,Content-Type");
+    	assertThat(options.matchingHeaders(),
+                hasItems(CaseInsensitiveKey.from("Accept"), CaseInsensitiveKey.from("Content-Type")));
+    }
+	
 	@Test
 	public void returnsRecordMappingsFalseWhenOptionNotPresent() {
 		CommandLineOptions options = new CommandLineOptions("");
@@ -88,7 +96,13 @@ public class CommandLineOptionsTest {
 	public void throwsExceptionWhenPortNumberSpecifiedWithoutNumber() {
 		new CommandLineOptions("--port");
 	}
-	
+    
+    @Test
+    public void returnsCorrecteyParsedBindAddress(){
+        CommandLineOptions options = new CommandLineOptions("--bind-address", "127.0.0.1");
+        assertThat(options.bindAddress(), is("127.0.0.1"));
+    }
+    
 	@Test
 	public void setsProxyAllRootWhenOptionPresent() {
 		CommandLineOptions options = new CommandLineOptions("--proxy-all", "http://someotherhost.com/site");
@@ -147,4 +161,6 @@ public class CommandLineOptionsTest {
     public void preventsRecordingWhenRequestJournalDisabled() {
         new CommandLineOptions("--no-request-journal", "--record-mappings");
     }
+    
+
 }

@@ -15,14 +15,18 @@
  */
 package com.github.tomakehurst.wiremock.core;
 
+import java.util.List;
+
 import com.github.tomakehurst.wiremock.common.FileSource;
 import com.github.tomakehurst.wiremock.common.HttpsSettings;
 import com.github.tomakehurst.wiremock.common.Notifier;
 import com.github.tomakehurst.wiremock.common.ProxySettings;
+import com.github.tomakehurst.wiremock.http.CaseInsensitiveKey;
 
 public interface Options {
 
     public static final int DEFAULT_PORT = 8080;
+    public static final String DEFAULT_BIND_ADDRESS = "0.0.0.0";
 
     int portNumber();
     HttpsSettings httpsSettings();
@@ -31,5 +35,6 @@ public interface Options {
     FileSource filesRoot();
     Notifier notifier();
     boolean requestJournalDisabled();
-
+    public String bindAddress();
+    List<CaseInsensitiveKey> matchingHeaders();
 }

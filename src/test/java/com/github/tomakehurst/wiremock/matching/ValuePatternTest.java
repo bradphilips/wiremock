@@ -24,6 +24,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -81,6 +82,77 @@ public class ValuePatternTest {
     }
 
     @Test
+    public void matchesOnIsEqualToXml() {
+        valuePattern.setEqualToXml("<H><J>111</J></H>");
+        assertTrue("Expected exact match", valuePattern.isMatchFor("<H><J>111</J></H>\n"));
+    }
+    
+    @Test
+    public void ignoresSubElementOrderWhenMatchingXml() {
+        valuePattern.setEqualToXml("<H><J>111</J><X>222</X></H>");
+        assertTrue("Expected similar match", valuePattern.isMatchFor("<H><X>222</X><J>111</J></H>\n"));
+    }
+
+    @Test
+    public void ignoresAttributeOrderWhenMatchingXml() {
+        valuePattern.setEqualToXml("<thing attr1=\"one\" attr2=\"two\" attr3=\"three\" />");
+        assertTrue("Expected similar match", valuePattern.isMatchFor(
+                "<thing attr3=\"three\" attr1=\"one\" attr2=\"two\"  />"));
+    }
+
+    @Test
+    public void matchesXPath() {
+        valuePattern.setMatchesXPath("//J[.='111']");
+        assertTrue("Expected XPath match", valuePattern.isMatchFor("<H><J>111</J><X>222</X></H>"));
+    }
+
+    @Test
+    public void matchesXPathWithNamespace() {
+        valuePattern.setMatchesXPath("//*[local-name() = 'J'][.='111']");
+        assertTrue("Expected XPath match", valuePattern.isMatchFor("<a:H xmlns:a='http://schemas.xmlsoap.org/soap/envelope/'><a:J>111</a:J><X>222</X></a:H>"));
+    }
+
+    @Test
+    public void doesNotMatchOnXPathWhenElementDoesNotExist() {
+        valuePattern.setMatchesXPath("//J[.='222']");
+        assertFalse("Expected XPath match", valuePattern.isMatchFor("<H><J>111</J><X>222</X></H>"));
+    }
+
+    @Test
+    public void matchesOnXPathProperty() {
+        String mySolarSystemXML = "<solar-system>"
+                + "<planet name='Earth' position='3' supportsLife='yes'/>"
+                + "<planet name='Venus' position='4'/></solar-system>";
+        valuePattern.setMatchesXPath("//planet[@name='Earth']");
+        assertTrue("Expected XPath match", valuePattern.isMatchFor(mySolarSystemXML));
+    }
+
+    @Test
+    public void doesNotMatchOnXPathPropertyWhenPropertyDoesNotExist() {
+        String mySolarSystemXML = "<solar-system>"
+                + "<planet name='Earth' position='3' supportsLife='yes'/>"
+                + "<planet name='Venus' position='4'/></solar-system>";
+        valuePattern.setMatchesXPath("//star[@name='alpha centauri']");
+        assertFalse("Expected XPath non-match", valuePattern.isMatchFor(mySolarSystemXML));
+    }
+
+    @Test
+    public void reportsMeaningfulErrorWhenMatchingXPathAndXMLDocIsInvalid() {
+        expectInfoNotification("Warning: failed to parse the XML document. Reason: XML document structures must start and end within the same entity.\nXML: <something>whatever</something");
+
+        valuePattern.setMatchesXPath("/something");
+        valuePattern.isMatchFor("<something>whatever</something");
+    }
+
+    @Test
+    public void reportsMeaningfulErrorWhenMatchingXPathAndXPathExpressionIsInvalid() {
+        expectInfoNotification("Warning: failed to evaluate the XPath expression ///!");
+
+        valuePattern.setMatchesXPath("///!");
+        valuePattern.isMatchFor("<something>whatever</something>");
+    }
+
+    @Test
     public void matchesOnIsEqualToJson() {
         valuePattern.setEqualToJson("{\"x\":0}");
         assertTrue("Expected exact match", valuePattern.isMatchFor("{\"x\":0}"));
@@ -92,6 +164,19 @@ public class ValuePatternTest {
         valuePattern.setEqualToJson("{\"x\":0,\"y\":1}");
         assertTrue("Expected exact match", valuePattern.isMatchFor("{\"x\":0,\"y\":1}"));
         assertTrue("Expected move field json match", valuePattern.isMatchFor("{\"y\":1,\"x\":0.0}"));
+    }
+
+    @Test
+    public void permitsExtraFieldsWhenJsonCompareModeIsLENIENT() {
+        valuePattern.setEqualToJson("{ \"x\": 0 }");
+        valuePattern.setJsonCompareMode(JSONCompareMode.LENIENT);
+        assertTrue("Expected match when unknown field is present in LENIENT mode", valuePattern.isMatchFor("{ \"x\": 0, \"y\": 1 }"));
+    }
+
+    @Test
+    public void doesNotMatchOnEqualToJsonWhenFieldMissing() {
+        valuePattern.setEqualToJson("{ \"x\": 0 }");
+        assertFalse("Expected no match when unknown field is present", valuePattern.isMatchFor("{ \"x\": 0, \"y\": 1 }"));
     }
     
     @Test

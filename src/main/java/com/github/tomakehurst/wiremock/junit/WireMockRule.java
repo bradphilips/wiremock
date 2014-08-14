@@ -20,6 +20,7 @@ import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.Options;
+import com.github.tomakehurst.wiremock.http.RequestListener;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import org.junit.rules.MethodRule;
 import org.junit.rules.TestRule;
@@ -62,7 +63,6 @@ public class WireMockRule implements MethodRule, TestRule, Stubbing {
 	@Override
 	public Statement apply(final Statement base, FrameworkMethod method, Object target) {
 		return new Statement() {
-
 			@Override
 			public void evaluate() throws Throwable {
 				wireMockServer = new WireMockServer(options);
@@ -70,14 +70,28 @@ public class WireMockRule implements MethodRule, TestRule, Stubbing {
 				WireMock.configureFor("localhost", port());
                 wireMock = new WireMock("localhost", port());
 				try {
+                    before();
                     base.evaluate();
                 } finally {
+                    after();
                     wireMockServer.stop();
                 }
 			}
-			
+
 		};
 	}
+
+    protected void before() {
+        // NOOP
+    }
+
+    protected void after() {
+        // NOOP
+    }
+
+    public void addMockServiceRequestListener(RequestListener requestListener) {
+        wireMockServer.addMockServiceRequestListener(requestListener);
+    }
 
     @Override
     public void givenThat(MappingBuilder mappingBuilder) {

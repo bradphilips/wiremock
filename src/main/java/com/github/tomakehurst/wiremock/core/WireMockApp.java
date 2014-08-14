@@ -42,18 +42,24 @@ public class WireMockApp implements StubServer, Admin {
     private final RequestDelayControl requestDelayControl;
     private final boolean browserProxyingEnabled;
     private final MappingsLoader defaultMappingsLoader;
+    private final Container container;
+    private final MappingsSaver mappingsSaver;
 
     public WireMockApp(
             RequestDelayControl requestDelayControl,
             boolean browserProxyingEnabled,
             MappingsLoader defaultMappingsLoader,
-            boolean requestJournalDisabled) {
+            MappingsSaver mappingsSaver,
+            boolean requestJournalDisabled,
+            Container container) {
         this.requestDelayControl = requestDelayControl;
         this.browserProxyingEnabled = browserProxyingEnabled;
         this.defaultMappingsLoader = defaultMappingsLoader;
+        this.mappingsSaver = mappingsSaver;
         globalSettingsHolder = new GlobalSettingsHolder();
         stubMappings = new InMemoryStubMappings();
         requestJournal = requestJournalDisabled ? new DisabledRequestJournal() : new InMemoryRequestJournal();
+        this.container = container;
         loadDefaultMappings();
     }
 
@@ -91,6 +97,11 @@ public class WireMockApp implements StubServer, Admin {
     }
 
     @Override
+    public void saveMappings() {
+        mappingsSaver.saveMappings(stubMappings);
+    }
+
+    @Override
     public void resetMappings() {
         stubMappings.reset();
         requestJournal.reset();
@@ -116,7 +127,7 @@ public class WireMockApp implements StubServer, Admin {
             return VerificationResult.withRequestJournalDisabled();
         }
     }
-
+    
     @Override
     public FindRequestsResult findRequestsMatching(RequestPattern requestPattern) {
         try {
@@ -135,6 +146,11 @@ public class WireMockApp implements StubServer, Admin {
     @Override
     public void addSocketAcceptDelay(RequestDelaySpec delaySpec) {
         requestDelayControl.setDelay(delaySpec.milliseconds());
+    }
+
+    @Override
+    public void shutdownServer() {
+        container.shutdown();
     }
 
 }

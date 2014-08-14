@@ -15,51 +15,63 @@
  */
 package com.github.tomakehurst.wiremock.standalone;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.common.*;
 import com.github.tomakehurst.wiremock.core.Options;
 import com.github.tomakehurst.wiremock.stubbing.StubMappingJsonRecorder;
+import com.github.tomakehurst.wiremock.http.CaseInsensitiveKey;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.UnmodifiableIterator;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collections;
+import java.util.List;
+
+import static com.github.tomakehurst.wiremock.http.CaseInsensitiveKey.TO_CASE_INSENSITIVE_KEYS;
 
 public class CommandLineOptions implements Options {
-	
+
 	private static final String HELP = "help";
 	private static final String RECORD_MAPPINGS = "record-mappings";
 	private static final String UNGZIP_RECORDED_RESPONSES = "ungzip-recorded-responses";
+	private static final String MATCH_HEADERS = "match-headers";
 	private static final String PROXY_ALL = "proxy-all";
     private static final String PROXY_VIA = "proxy-via";
 	private static final String PORT = "port";
+    private static final String BIND_ADDRESS = "bind-address";
     private static final String HTTPS_PORT = "https-port";
     private static final String HTTPS_KEYSTORE = "https-keystore";
 	private static final String VERBOSE = "verbose";
 	private static final String ENABLE_BROWSER_PROXYING = "enable-browser-proxying";
     private static final String DISABLE_REQUEST_JOURNAL = "no-request-journal";
+    private static final String ROOT_DIR = "root-dir";
 
-    private final FileSource fileSource;
-	private final OptionSet optionSet;
+    private final OptionSet optionSet;
 	private String helpText;
 
-    public CommandLineOptions(FileSource fileSource, String... args) {
-        this.fileSource = fileSource;
-
+    public CommandLineOptions(String... args) {
 		OptionParser optionParser = new OptionParser();
 		optionParser.accepts(PORT, "The port number for the server to listen on").withRequiredArg();
         optionParser.accepts(HTTPS_PORT, "If this option is present WireMock will enable HTTPS on the specified port").withRequiredArg();
+        optionParser.accepts(BIND_ADDRESS, "The IP to listen connections").withRequiredArg();
         optionParser.accepts(HTTPS_KEYSTORE, "Path to an alternative keystore for HTTPS. Must have a password of \"password\".").withRequiredArg();
 		optionParser.accepts(PROXY_ALL, "Will create a proxy mapping for /* to the specified URL").withRequiredArg();
         optionParser.accepts(PROXY_VIA, "Specifies a proxy server to use when routing proxy mapped requests").withRequiredArg();
 		optionParser.accepts(RECORD_MAPPINGS, "Enable recording of all (non-admin) requests as mapping files");
 		optionParser.accepts(UNGZIP_RECORDED_RESPONSES, "Decompresses all gzip responses when recording");
+		optionParser.accepts(MATCH_HEADERS, "Enable request header matching when recording through a proxy").withRequiredArg();
+		optionParser.accepts(ROOT_DIR, "Specifies path for storing recordings (parent for " + WireMockServer.MAPPINGS_ROOT + " and " + WireMockServer.FILES_ROOT + " folders)").withRequiredArg().defaultsTo(".");
 		optionParser.accepts(VERBOSE, "Enable verbose logging to stdout");
 		optionParser.accepts(ENABLE_BROWSER_PROXYING, "Allow wiremock to be set as a browser's proxy server");
         optionParser.accepts(DISABLE_REQUEST_JOURNAL, "Disable the request journal (to avoid heap growth when running wiremock for long periods without reset)");
 		optionParser.accepts(HELP, "Print this message");
-		
+
 		optionSet = optionParser.parse(args);
         validate();
 		captureHelpTextIfRequested(optionParser);
@@ -75,10 +87,6 @@ public class CommandLineOptions implements Options {
         }
     }
 
-    public CommandLineOptions(String... args) {
-        this(new SingleRootFileSource("."), args);
-    }
-
     private void captureHelpTextIfRequested(OptionParser optionParser) {
 		if (optionSet.has(HELP)) {
 			StringWriter out = new StringWriter();
@@ -87,15 +95,15 @@ public class CommandLineOptions implements Options {
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
-			
+
 			helpText = out.toString();
 		}
 	}
-	
+
 	public boolean verboseLoggingEnabled() {
 		return optionSet.has(VERBOSE);
 	}
-	
+
 	public boolean recordMappingsEnabled() {
 		return optionSet.has(RECORD_MAPPINGS);
 	}
@@ -106,11 +114,22 @@ public class CommandLineOptions implements Options {
         }
         return StubMappingJsonRecorder.DecompressionMode.NO_DECOMPRESSION;
     }
-	
+
+	@Override
+	public List<CaseInsensitiveKey> matchingHeaders() {
+		if (optionSet.hasArgument(MATCH_HEADERS)) {
+			String headerSpec = (String) optionSet.valueOf(MATCH_HEADERS);
+            UnmodifiableIterator<String> headerKeys = Iterators.forArray(headerSpec.split(","));
+            return ImmutableList.copyOf(Iterators.transform(headerKeys, TO_CASE_INSENSITIVE_KEYS));
+		}
+
+		return Collections.emptyList();
+	}
+
 	private boolean specifiesPortNumber() {
 		return optionSet.has(PORT);
 	}
-	
+
 	@Override
     public int portNumber() {
         if (specifiesPortNumber()) {
@@ -119,6 +138,15 @@ public class CommandLineOptions implements Options {
 
         return DEFAULT_PORT;
 	}
+
+    @Override
+    public String bindAddress(){
+	if (optionSet.has(BIND_ADDRESS)) {
+            return (String) optionSet.valueOf(BIND_ADDRESS);
+        }
+
+        return DEFAULT_BIND_ADDRESS;
+    }
 
     @Override
     public HttpsSettings httpsSettings() {
@@ -140,19 +168,19 @@ public class CommandLineOptions implements Options {
     public boolean help() {
 		return optionSet.has(HELP);
 	}
-	
+
 	public String helpText() {
 		return helpText;
 	}
-	
+
 	public boolean specifiesProxyUrl() {
 		return optionSet.has(PROXY_ALL);
 	}
-	
+
 	public String proxyUrl() {
 		return (String) optionSet.valueOf(PROXY_ALL);
 	}
-	
+
 	@Override
     public boolean browserProxyingEnabled() {
 		return optionSet.has(ENABLE_BROWSER_PROXYING);
@@ -170,7 +198,7 @@ public class CommandLineOptions implements Options {
 
     @Override
     public FileSource filesRoot() {
-        return fileSource;
+        return new SingleRootFileSource((String) optionSet.valueOf(ROOT_DIR));
     }
 
     @Override
